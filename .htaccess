@@ -1,0 +1,24 @@
+# ==============================================================================
+# Ahorvia — Protección y Redirección Segura en Raíz (cPanel / Apache / LiteSpeed)
+# ==============================================================================
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Bloqueo estricto de acceso a archivos ocultos, configuración y código fuente
+    RewriteRule ^(\.env|\.git|composer\.(json|lock)|package\.(json|lock)|phpunit\.xml|phpstan\.neon|artisan|DEPLOYMENT\.md|PROJECT_STATUS\.md|AGENTS\.md) - [F,L,NC]
+    RewriteRule ^(app|bootstrap|config|database|resources|routes|storage|tests)/ - [F,L,NC]
+
+    # Redirección transparente de todo tráfico hacia la carpeta public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Deshabilitar listado de directorios
+Options -Indexes
+
+# Bloquear lectura directa de archivos de entorno
+<FilesMatch "^\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
