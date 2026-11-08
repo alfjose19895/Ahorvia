@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\AccessStatus;
 use App\Models\User;
+use App\Services\Finance\LedgerBootstrapService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -62,6 +63,8 @@ class CreateAhorviaUserCommand extends Command
             'is_active' => true,
             'access_status' => AccessStatus::Active,
         ])->save();
+
+        app(LedgerBootstrapService::class)->ensureDefaultCategories($user);
 
         $this->info("Usuario [{$user->email}] creado y activado correctamente en Ahorvia.");
 

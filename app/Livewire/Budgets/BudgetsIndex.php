@@ -11,6 +11,7 @@ use App\Models\Budget;
 use App\Models\Category;
 use App\Models\User;
 use App\Services\Budget\BudgetMonitorService;
+use App\Services\Finance\LedgerBootstrapService;
 use App\Support\DecimalMath;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -77,6 +78,10 @@ class BudgetsIndex extends Component
             ->where('is_active', true)
             ->with(['lines'])
             ->first();
+
+        if (Category::query()->ownedBy($user)->count() === 0) {
+            app(LedgerBootstrapService::class)->ensureDefaultCategories($user);
+        }
 
         $expenseCategories = Category::query()
             ->ownedBy($user)
@@ -162,6 +167,10 @@ class BudgetsIndex extends Component
 
         /** @var BudgetExecutionData|null $execution */
         $execution = $budget !== null ? $monitorService->evaluate($budget) : null;
+
+        if (Category::query()->ownedBy($user)->count() === 0) {
+            app(LedgerBootstrapService::class)->ensureDefaultCategories($user);
+        }
 
         /** @var Collection<int, Category> $expenseCategories */
         $expenseCategories = Category::query()

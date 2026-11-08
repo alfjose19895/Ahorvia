@@ -14,6 +14,7 @@ use App\Models\Account;
 use App\Models\Category;
 use App\Models\JournalEntry;
 use App\Models\User;
+use App\Services\Finance\LedgerBootstrapService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -311,6 +312,11 @@ class TransactionsIndex extends Component
         $entries = $query->paginate(15);
 
         $accounts = Account::query()->ownedBy($user)->userFacing()->active()->orderBy('name')->get();
+
+        if (Category::query()->ownedBy($user)->count() === 0) {
+            app(LedgerBootstrapService::class)->ensureDefaultCategories($user);
+        }
+
         $categories = Category::query()->ownedBy($user)->active()->orderBy('name')->get();
 
         return view('livewire.transactions.transactions-index', [

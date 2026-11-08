@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Fortify;
 
 use App\Enums\AccessStatus;
-use App\Enums\CategoryType;
-use App\Models\Category;
 use App\Models\User;
+use App\Services\Finance\LedgerBootstrapService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -55,45 +54,8 @@ class CreateNewUser implements CreatesNewUsers
             'access_status' => AccessStatus::Active,
         ]);
 
-        $this->seedDefaultCategories($user);
+        app(LedgerBootstrapService::class)->ensureDefaultCategories($user);
 
         return $user;
-    }
-
-    private function seedDefaultCategories(User $user): void
-    {
-        $defaults = [
-            // Ingresos
-            ['name' => 'Sueldo / Nómina', 'slug' => 'sueldo', 'type' => CategoryType::Income, 'color' => '#10B981'],
-            ['name' => 'Negocio / Freelance', 'slug' => 'negocio-freelance', 'type' => CategoryType::Income, 'color' => '#3B82F6'],
-            ['name' => 'Rentas e Inversiones', 'slug' => 'inversiones', 'type' => CategoryType::Income, 'color' => '#8B5CF6'],
-            ['name' => 'Otros Ingresos', 'slug' => 'otros-ingresos', 'type' => CategoryType::Income, 'color' => '#64748B'],
-
-            // Gastos esenciales y estilo de vida
-            ['name' => 'Alimentación y Supermercado', 'slug' => 'alimentacion', 'type' => CategoryType::Expense, 'color' => '#10B981'],
-            ['name' => 'Vivienda y Servicios', 'slug' => 'vivienda', 'type' => CategoryType::Expense, 'color' => '#F59E0B'],
-            ['name' => 'Transporte y Movilidad', 'slug' => 'transporte', 'type' => CategoryType::Expense, 'color' => '#64748B'],
-            ['name' => 'Salud y Farmacia', 'slug' => 'salud', 'type' => CategoryType::Expense, 'color' => '#06B6D4'],
-            ['name' => 'Educación y Libros', 'slug' => 'educacion', 'type' => CategoryType::Expense, 'color' => '#8B5CF6'],
-            ['name' => 'Ocio y Restaurantes', 'slug' => 'ocio', 'type' => CategoryType::Expense, 'color' => '#EC4899'],
-            ['name' => 'Financiero e Intereses', 'slug' => 'intereses-comisiones', 'type' => CategoryType::Expense, 'color' => '#EF4444'],
-            ['name' => 'Otros Gastos', 'slug' => 'otros-gastos', 'type' => CategoryType::Expense, 'color' => '#94A3B8'],
-        ];
-
-        foreach ($defaults as $cat) {
-            Category::query()->firstOrCreate(
-                [
-                    'user_id' => $user->getKey(),
-                    'slug' => $cat['slug'],
-                ],
-                [
-                    'name' => $cat['name'],
-                    'type' => $cat['type'],
-                    'color' => $cat['color'],
-                    'is_system' => false,
-                    'is_active' => true,
-                ]
-            );
-        }
     }
 }
