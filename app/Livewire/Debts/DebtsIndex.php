@@ -16,6 +16,7 @@ use App\Enums\EntryStatus;
 use App\Enums\MovementType;
 use App\Models\Account;
 use App\Models\Debt;
+use App\Models\FinancialInstitution;
 use App\Models\JournalEntry;
 use App\Models\User;
 use App\Services\Debt\DebtBalanceService;
@@ -159,6 +160,13 @@ class DebtsIndex extends Component
             'disbursement_account_id' => $this->disbursementAccountId,
             'notes' => $this->notes,
         ]);
+
+        if (! empty($this->creditorName)) {
+            FinancialInstitution::query()->firstOrCreate(
+                ['user_id' => $user->id, 'name' => trim((string) $this->creditorName)],
+                ['is_active' => true]
+            );
+        }
 
         $this->showCreateModal = false;
         session()->flash('status', 'Deuda / crédito registrada exitosamente con su cuenta contable de pasivo.');
@@ -360,6 +368,13 @@ class DebtsIndex extends Component
             ]);
         }
 
+        if (! empty($validated['editCreditorName'])) {
+            FinancialInstitution::query()->firstOrCreate(
+                ['user_id' => $user->id, 'name' => trim((string) $validated['editCreditorName'])],
+                ['is_active' => true]
+            );
+        }
+
         $this->closeEditModal();
         session()->flash('status', '¡Crédito / Préstamo actualizado con éxito!');
     }
@@ -516,10 +531,17 @@ class DebtsIndex extends Component
             ? $debts->firstWhere('id', $this->selectedDebtId)
             : null;
 
+        $institutions = FinancialInstitution::query()
+            ->ownedBy($user)
+            ->active()
+            ->orderBy('name')
+            ->pluck('name');
+
         return view('livewire.debts.debts-index', [
             'debtsData' => $debtsData,
             'liquidAccounts' => $liquidAccounts,
             'selectedDebt' => $selectedDebt,
+            'institutions' => $institutions,
             'totalPendingPrincipal' => $totalPendingPrincipal,
             'totalPrincipalPaid' => $totalPrincipalPaid,
             'totalInterestFeesPaid' => $totalInterestFeesPaid,

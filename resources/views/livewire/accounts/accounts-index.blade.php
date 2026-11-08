@@ -286,7 +286,7 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Institución bancaria</label>
-                            <input type="text" wire:model="institution_name" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" placeholder="Ej. BCP, BBVA, Interbank" />
+                            <input type="text" list="institutions-list" wire:model="institution_name" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" placeholder="Ej. Banco Guayaquil, Pichincha, Chase..." />
                             @error('institution_name') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
                         </div>
 
@@ -359,7 +359,7 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Institución bancaria</label>
-                            <input type="text" wire:model="editInstitutionName" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
+                            <input type="text" list="institutions-list" wire:model="editInstitutionName" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Últimos 4 dígitos</label>
@@ -490,5 +490,11 @@
             </div>
         </div>
     @endif
+
+    <datalist id="institutions-list">
+        @foreach ($institutions as $inst)
+            <option value="{{ $inst }}"></option>
+        @endforeach
+    </datalist>
 </div>
 

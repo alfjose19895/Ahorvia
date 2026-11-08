@@ -8,6 +8,7 @@ use App\Enums\AccountType;
 use App\Enums\CategoryType;
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\FinancialInstitution;
 use App\Models\User;
 
 class LedgerBootstrapService
@@ -92,6 +93,33 @@ class LedgerBootstrapService
                     'type' => $cat['type'],
                     'color' => $cat['color'],
                     'is_system' => false,
+                    'is_active' => true,
+                ]
+            );
+        }
+    }
+
+    public function ensureDefaultInstitutions(User $user): void
+    {
+        $defaults = [
+            'Banco Pichincha',
+            'Banco Guayaquil',
+            'Produbanco',
+            'Banco del Pacífico',
+            'Banco Bolivariano',
+            'Banco Internacional',
+            'Cooperativa JEP',
+            'Cooperativa Policía Nacional',
+            'Efectivo / Caja Personal',
+        ];
+
+        foreach ($defaults as $name) {
+            FinancialInstitution::query()->firstOrCreate(
+                [
+                    'user_id' => $user->getKey(),
+                    'name' => $name,
+                ],
+                [
                     'is_active' => true,
                 ]
             );

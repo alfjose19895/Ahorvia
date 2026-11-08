@@ -64,7 +64,9 @@ class CreateAhorviaUserCommand extends Command
             'access_status' => AccessStatus::Active,
         ])->save();
 
-        app(LedgerBootstrapService::class)->ensureDefaultCategories($user);
+        $bootstrap = app(LedgerBootstrapService::class);
+        $bootstrap->ensureDefaultCategories($user);
+        $bootstrap->ensureDefaultInstitutions($user);
 
         $this->info("Usuario [{$user->email}] creado y activado correctamente en Ahorvia.");
 

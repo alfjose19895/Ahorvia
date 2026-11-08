@@ -246,7 +246,7 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Banco emisor</label>
-                            <input type="text" wire:model="bankName" placeholder="Ej. BBVA, Santander, Chase..." class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
+                            <input type="text" list="cards-institutions-list" wire:model="bankName" placeholder="Ej. Banco Guayaquil, Pichincha, Chase..." class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
                             @error('bankName') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
                         </div>
 
@@ -414,7 +414,7 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Banco o Entidad emisora</label>
-                            <input type="text" wire:model="editBankName" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
+                            <input type="text" list="cards-institutions-list" wire:model="editBankName" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
                             @error('editBankName') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
                         </div>
 
@@ -474,5 +474,11 @@
             </div>
         </div>
     @endif
+
+    <datalist id="cards-institutions-list">
+        @foreach ($institutions as $inst)
+            <option value="{{ $inst }}"></option>
+        @endforeach
+    </datalist>
 </div>
 

@@ -54,7 +54,9 @@ class CreateNewUser implements CreatesNewUsers
             'access_status' => AccessStatus::Active,
         ]);
 
-        app(LedgerBootstrapService::class)->ensureDefaultCategories($user);
+        $bootstrap = app(LedgerBootstrapService::class);
+        $bootstrap->ensureDefaultCategories($user);
+        $bootstrap->ensureDefaultInstitutions($user);
 
         return $user;
     }

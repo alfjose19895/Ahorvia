@@ -19,6 +19,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -78,6 +79,15 @@ class TransactionsIndex extends Component
     public ?string $reversalReason = null;
 
     public ?JournalEntry $reversingEntry = null;
+
+    // Modal creación rápida de categoría "al vuelo"
+    public bool $showQuickCategoryModal = false;
+
+    public string $quickCategoryName = '';
+
+    public string $quickCategoryType = 'expense';
+
+    public string $quickCategoryColor = '#10B981';
 
     public function mount(): void
     {
@@ -253,6 +263,65 @@ class TransactionsIndex extends Component
 
         $this->closeReversalModal();
         session()->flash('status', '¡Asiento contable reversado correctamente! Se generó el contra-asiento de auditoría.');
+    }
+
+    public function openQuickCategoryModal(?string $type = null): void
+    {
+        $resolvedType = $type && in_array($type, ['expense', 'income'], true)
+            ? $type
+            : ($this->transactionType === 'income' ? 'income' : 'expense');
+
+        $this->quickCategoryType = $resolvedType;
+        $this->quickCategoryColor = $resolvedType === 'income' ? '#10B981' : '#EF4444';
+        $this->quickCategoryName = '';
+        $this->resetValidation();
+        $this->showQuickCategoryModal = true;
+    }
+
+    public function closeQuickCategoryModal(): void
+    {
+        $this->showQuickCategoryModal = false;
+        $this->resetValidation();
+    }
+
+    public function saveQuickCategory(): void
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $this->validate([
+            'quickCategoryName' => ['required', 'string', 'max:120'],
+            'quickCategoryType' => ['required', Rule::in(['expense', 'income'])],
+            'quickCategoryColor' => ['required', 'regex:/^#[a-fA-F0-9]{6}$/'],
+        ]);
+
+        $name = trim($this->quickCategoryName);
+        $slug = Str::slug($name);
+        if ($slug === '') {
+            $slug = 'cat-'.time();
+        }
+
+        $baseSlug = $slug;
+        $counter = 1;
+        while (Category::query()->ownedBy($user)->where('type', CategoryType::from($this->quickCategoryType))->where('slug', $slug)->exists()) {
+            $slug = "{$baseSlug}-{$counter}";
+            $counter++;
+        }
+
+        $category = Category::query()->create([
+            'user_id' => $user->id,
+            'name' => $name,
+            'slug' => $slug,
+            'type' => CategoryType::from($this->quickCategoryType),
+            'color' => $this->quickCategoryColor,
+            'is_system' => false,
+            'is_active' => true,
+        ]);
+
+        $this->categoryId = $category->id;
+        $this->showQuickCategoryModal = false;
+        $this->resetValidation();
+        session()->flash('status', "Categoría '{$category->name}' creada y seleccionada.");
     }
 
     public function render(): View

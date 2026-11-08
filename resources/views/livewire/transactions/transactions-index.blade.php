@@ -310,7 +310,16 @@
                             </div>
                         @else
                             <div>
-                                <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Categoría *</label>
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Categoría *</label>
+                                    <button
+                                        type="button"
+                                        wire:click="openQuickCategoryModal('{{ $transactionType }}')"
+                                        class="text-[11px] font-semibold text-[#10B981] hover:underline"
+                                    >
+                                        + Nueva opción
+                                    </button>
+                                </div>
                                 <select wire:model="categoryId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white">
                                     <option value="">Selecciona categoría</option>
                                     @if ($transactionType === 'income')
@@ -411,6 +420,67 @@
                         </button>
                         <button type="submit" class="rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-red-700">
                             Confirmar reverso
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal: Crear Categoría Rápida al Vuelo --}}
+    @if ($showQuickCategoryModal)
+        <div class="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <div class="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+                    <h3 class="text-sm font-bold text-[#0F172A] dark:text-white">
+                        + Nueva Categoría de {{ $quickCategoryType === 'income' ? 'Ingreso' : 'Gasto' }}
+                    </h3>
+                    <button type="button" wire:click="closeQuickCategoryModal" class="text-slate-400 hover:text-slate-600">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form wire:submit="saveQuickCategory" class="mt-4 space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Nombre de la categoría *</label>
+                        <input
+                            type="text"
+                            wire:model="quickCategoryName"
+                            placeholder="Ej. Mascotas, Streaming, Cursos..."
+                            class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                            autofocus
+                        />
+                        @error('quickCategoryName') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Color distintivo</label>
+                        <div class="mt-1 flex items-center gap-2">
+                            <input
+                                type="color"
+                                wire:model="quickCategoryColor"
+                                class="h-8 w-12 cursor-pointer rounded-lg border border-slate-200 bg-transparent p-0.5"
+                            />
+                            <span class="text-xs font-mono text-slate-500">{{ $quickCategoryColor }}</span>
+                        </div>
+                        @error('quickCategoryColor') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                            type="button"
+                            wire:click="closeQuickCategoryModal"
+                            class="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#64748B] hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            class="rounded-xl bg-[#10B981] px-4 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-[#064E3B]"
+                        >
+                            Crear y Seleccionar
                         </button>
                     </div>
                 </form>

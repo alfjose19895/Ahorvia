@@ -273,7 +273,7 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Acreedor / Banco</label>
-                            <input type="text" wire:model="creditorName" placeholder="Ej. Banco Santander..." class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
+                            <input type="text" list="debts-institutions-list" wire:model="creditorName" placeholder="Ej. Banco Guayaquil, Pichincha..." class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
                             @error('creditorName') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
                         </div>
                     </div>
@@ -458,7 +458,7 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Acreedor / Banco</label>
-                            <input type="text" wire:model="editCreditorName" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
+                            <input type="text" list="debts-institutions-list" wire:model="editCreditorName" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
                             @error('editCreditorName') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
                         </div>
                     </div>
@@ -533,5 +533,11 @@
             </div>
         </div>
     @endif
+
+    <datalist id="debts-institutions-list">
+        @foreach ($institutions as $inst)
+            <option value="{{ $inst }}"></option>
+        @endforeach
+    </datalist>
 </div>
 

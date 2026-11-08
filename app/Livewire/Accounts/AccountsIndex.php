@@ -10,6 +10,7 @@ use App\Actions\Transactions\ReverseJournalEntryAction;
 use App\Enums\AccountType;
 use App\Enums\EntryStatus;
 use App\Models\Account;
+use App\Models\FinancialInstitution;
 use App\Models\JournalEntry;
 use App\Models\User;
 use App\Services\Finance\AccountBalanceService;
@@ -147,6 +148,13 @@ class AccountsIndex extends Component
             'notes' => $validated['notes'] ?? null,
         ]);
 
+        if (! empty($validated['institution_name'])) {
+            FinancialInstitution::query()->firstOrCreate(
+                ['user_id' => $user->id, 'name' => trim((string) $validated['institution_name'])],
+                ['is_active' => true]
+            );
+        }
+
         $this->closeCreateModal();
         session()->flash('status', '¡Cuenta financiera creada exitosamente!');
     }
@@ -215,6 +223,13 @@ class AccountsIndex extends Component
             'is_active' => (bool) $validated['editIsActive'],
             'notes' => isset($validated['editNotes']) ? trim((string) $validated['editNotes']) : null,
         ]);
+
+        if (! empty($validated['editInstitutionName'])) {
+            FinancialInstitution::query()->firstOrCreate(
+                ['user_id' => $user->id, 'name' => trim((string) $validated['editInstitutionName'])],
+                ['is_active' => true]
+            );
+        }
 
         $this->closeEditModal();
         session()->flash('status', '¡Cuenta actualizada con éxito!');
@@ -372,9 +387,16 @@ class AccountsIndex extends Component
 
         $activeTransferAccounts = $accounts->where('is_active', true)->values();
 
+        $institutions = FinancialInstitution::query()
+            ->ownedBy($user)
+            ->active()
+            ->orderBy('name')
+            ->pluck('name');
+
         return view('livewire.accounts.accounts-index', [
             'accountsData' => $accountsData,
             'activeTransferAccounts' => $activeTransferAccounts,
+            'institutions' => $institutions,
             'currency' => $currency,
             'totalAssetsFormatted' => MoneyFormatter::format($totalAssets, $currency),
             'totalLiabilitiesFormatted' => MoneyFormatter::format($totalLiabilities, $currency),

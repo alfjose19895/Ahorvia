@@ -13,6 +13,7 @@ use App\Enums\DebtType;
 use App\Enums\EntryStatus;
 use App\Models\Account;
 use App\Models\Debt;
+use App\Models\FinancialInstitution;
 use App\Models\JournalEntry;
 use App\Models\User;
 use App\Services\Debt\DebtBalanceService;
@@ -139,6 +140,13 @@ class CardsIndex extends Component
             'payment_due_day' => $this->paymentDueDay,
             'notes' => $this->notes,
         ]);
+
+        if (! empty($this->bankName)) {
+            FinancialInstitution::query()->firstOrCreate(
+                ['user_id' => $user->id, 'name' => trim((string) $this->bankName)],
+                ['is_active' => true]
+            );
+        }
 
         $this->showCreateModal = false;
         session()->flash('status', 'Tarjeta de crédito registrada exitosamente.');
@@ -279,6 +287,13 @@ class CardsIndex extends Component
             ]);
         }
 
+        if (! empty($validated['editBankName'])) {
+            FinancialInstitution::query()->firstOrCreate(
+                ['user_id' => $user->id, 'name' => trim((string) $validated['editBankName'])],
+                ['is_active' => true]
+            );
+        }
+
         $this->closeEditModal();
         session()->flash('status', '¡Tarjeta de crédito actualizada con éxito!');
     }
@@ -379,10 +394,17 @@ class CardsIndex extends Component
             ? $cards->firstWhere('id', $this->selectedCardDebtId)
             : null;
 
+        $institutions = FinancialInstitution::query()
+            ->ownedBy($user)
+            ->active()
+            ->orderBy('name')
+            ->pluck('name');
+
         return view('livewire.debts.cards-index', [
             'cardsData' => $cardsData,
             'liquidAccounts' => $liquidAccounts,
             'selectedCard' => $selectedCard,
+            'institutions' => $institutions,
             'totalCreditLimit' => $totalCreditLimit,
             'totalUsedBalance' => $totalUsedBalance,
             'totalAvailableCredit' => $totalAvailableCredit,
