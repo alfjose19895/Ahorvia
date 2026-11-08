@@ -465,12 +465,12 @@
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Tasa anual (%)</label>
+                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Monto del crédito / principal *</label>
                             <div class="relative mt-1">
-                                <input type="text" wire:model="editInterestRateAnnual" placeholder="12.5" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
-                                <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs text-slate-400">%</span>
+                                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400">$</span>
+                                <input type="text" wire:model="editOriginalPrincipal" placeholder="5000.00" class="w-full rounded-xl border border-slate-200 pl-7 pr-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white font-medium" />
                             </div>
-                            @error('editInterestRateAnnual') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
+                            @error('editOriginalPrincipal') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
                         </div>
 
                         <div>
@@ -480,15 +480,24 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-3 gap-3">
                         <div>
-                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Fecha de vencimiento</label>
+                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Tasa anual (%)</label>
+                            <div class="relative mt-1">
+                                <input type="text" wire:model="editInterestRateAnnual" placeholder="12.5" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
+                                <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs text-slate-400">%</span>
+                            </div>
+                            @error('editInterestRateAnnual') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Fecha vencimiento</label>
                             <input type="date" wire:model="editDueDate" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
                             @error('editDueDate') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Día de pago mensual (1-31)</label>
+                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Día de pago (1-31)</label>
                             <input type="number" min="1" max="31" wire:model="editPaymentDueDay" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
                             @error('editPaymentDueDay') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
                         </div>

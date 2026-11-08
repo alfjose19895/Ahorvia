@@ -7,15 +7,20 @@ namespace App\Livewire\Debts;
 use App\Actions\Debts\CreateDebtAction;
 use App\Actions\Debts\RecordDebtPaymentAction;
 use App\Actions\Transactions\ReverseJournalEntryAction;
+use App\Data\Finance\JournalLineInputData;
+use App\Data\Finance\PostJournalEntryData;
 use App\Enums\AccountType;
 use App\Enums\DebtStatus;
 use App\Enums\DebtType;
 use App\Enums\EntryStatus;
+use App\Enums\MovementType;
 use App\Models\Account;
 use App\Models\Debt;
 use App\Models\JournalEntry;
 use App\Models\User;
 use App\Services\Debt\DebtBalanceService;
+use App\Services\Finance\JournalPosterService;
+use App\Services\Finance\LedgerBootstrapService;
 use App\Support\DecimalMath;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -61,6 +66,8 @@ class DebtsIndex extends Component
     public ?int $editingDebtId = null;
 
     public string $editName = '';
+
+    public string $editOriginalPrincipal = '';
 
     public string $editDebtType = 'personal_loan';
 
@@ -166,6 +173,7 @@ class DebtsIndex extends Component
 
         $this->editingDebtId = $debt->id;
         $this->editName = $debt->name;
+        $this->editOriginalPrincipal = (string) $debt->original_principal;
         $this->editDebtType = $debt->type->value;
         $this->editCreditorName = $debt->creditor_name;
         $this->editInterestRateAnnual = $debt->interest_rate_annual !== null ? (string) $debt->interest_rate_annual : null;
@@ -186,8 +194,11 @@ class DebtsIndex extends Component
         $this->resetValidation();
     }
 
-    public function updateDebt(): void
-    {
+    public function updateDebt(
+        ReverseJournalEntryAction $reverseAction,
+        JournalPosterService $journalPoster,
+        LedgerBootstrapService $ledgerBootstrap,
+    ): void {
         if ($this->editingDebtId === null) {
             return;
         }
@@ -195,10 +206,11 @@ class DebtsIndex extends Component
         /** @var User $user */
         $user = Auth::user();
         /** @var Debt $debt */
-        $debt = Debt::query()->ownedBy($user)->findOrFail($this->editingDebtId);
+        $debt = Debt::query()->ownedBy($user)->with(['liabilityAccount'])->findOrFail($this->editingDebtId);
 
         $validated = $this->validate([
             'editName' => ['required', 'string', 'max:255'],
+            'editOriginalPrincipal' => ['required', 'regex:/^\d+(\.\d{1,4})?$/', 'not_in:0,0.0,0.00,0.000,0.0000'],
             'editDebtType' => ['required', Rule::in(['personal_loan', 'bank_loan', 'mortgage', 'informal_debt'])],
             'editCreditorName' => ['nullable', 'string', 'max:255'],
             'editInterestRateAnnual' => ['nullable', 'regex:/^\d+(\.\d{1,4})?$/'],
@@ -208,6 +220,115 @@ class DebtsIndex extends Component
             'editNotes' => ['nullable', 'string', 'max:1000'],
             'editStatus' => ['required', Rule::in(['active', 'paid_off', 'cancelled'])],
         ]);
+
+        $newPrincipal = DecimalMath::normalize($validated['editOriginalPrincipal']);
+        $oldPrincipal = DecimalMath::normalize((string) $debt->original_principal);
+
+        if (! DecimalMath::equals($newPrincipal, $oldPrincipal)) {
+            if ($debt->payments()->count() > 0) {
+                $this->addError('editOriginalPrincipal', 'No se puede modificar el monto original porque este crédito ya tiene abonos registrados. Reversa primero los abonos en Movimientos para corregir el monto inicial.');
+
+                return;
+            }
+
+            DB::transaction(function () use ($user, $debt, $newPrincipal, $reverseAction, $journalPoster, $ledgerBootstrap): void {
+                $initialEntry = JournalEntry::query()
+                    ->ownedBy($user)
+                    ->where('status', EntryStatus::Posted)
+                    ->where(function ($query) use ($debt): void {
+                        $query->where('reference', "DEBT-{$debt->id}")
+                            ->orWhereJsonContains('metadata->debt_id', $debt->id);
+                    })
+                    ->first();
+
+                $disbursementAccountId = null;
+                $entryDate = $debt->start_date ? CarbonImmutable::parse($debt->start_date) : CarbonImmutable::now();
+
+                if ($initialEntry !== null) {
+                    $reverseAction->execute($user, $initialEntry, "Ajuste de monto principal en crédito [{$debt->name}] de {$debt->original_principal} a {$newPrincipal}.");
+
+                    if ($initialEntry->movement_type === MovementType::LoanDisbursement) {
+                        $disbursementLine = $initialEntry->lines->firstWhere('account_id', '!=', $debt->liability_account_id);
+                        if ($disbursementLine !== null) {
+                            $disbursementAccountId = $disbursementLine->account_id;
+                        }
+                    }
+                }
+
+                $liabilityAccount = $debt->liabilityAccount;
+                if ($liabilityAccount !== null && DecimalMath::compare($newPrincipal, DecimalMath::ZERO) > 0) {
+                    if ($disbursementAccountId !== null) {
+                        $disbursementAccount = Account::query()->ownedBy($user)->find($disbursementAccountId);
+                        if ($disbursementAccount !== null) {
+                            $lines = [
+                                new JournalLineInputData(
+                                    accountId: (int) $disbursementAccount->id,
+                                    debit: $newPrincipal,
+                                    credit: DecimalMath::ZERO,
+                                    memo: "Desembolso corregido de deuda {$debt->name}",
+                                ),
+                                new JournalLineInputData(
+                                    accountId: (int) $liabilityAccount->id,
+                                    debit: DecimalMath::ZERO,
+                                    credit: $newPrincipal,
+                                    memo: "Reconocimiento de obligación por desembolso corregido: {$debt->name}",
+                                ),
+                            ];
+                            $movType = MovementType::LoanDisbursement;
+                            $desc = "Desembolso de {$debt->name} en {$disbursementAccount->name}";
+                        } else {
+                            $equityAccount = $ledgerBootstrap->systemEquityAccount($user, $debt->currency_code);
+                            $lines = [
+                                new JournalLineInputData(
+                                    accountId: (int) $equityAccount->id,
+                                    debit: $newPrincipal,
+                                    credit: DecimalMath::ZERO,
+                                    memo: "Contrapartida de saldo inicial pasivo corregido: {$debt->name}",
+                                ),
+                                new JournalLineInputData(
+                                    accountId: (int) $liabilityAccount->id,
+                                    debit: DecimalMath::ZERO,
+                                    credit: $newPrincipal,
+                                    memo: "Saldo inicial corregido de deuda: {$debt->name}",
+                                ),
+                            ];
+                            $movType = MovementType::OpeningBalance;
+                            $desc = "Saldo inicial de deuda {$debt->name}";
+                        }
+                    } else {
+                        $equityAccount = $ledgerBootstrap->systemEquityAccount($user, $debt->currency_code);
+                        $lines = [
+                            new JournalLineInputData(
+                                accountId: (int) $equityAccount->id,
+                                debit: $newPrincipal,
+                                credit: DecimalMath::ZERO,
+                                memo: "Contrapartida de saldo inicial pasivo corregido: {$debt->name}",
+                            ),
+                            new JournalLineInputData(
+                                accountId: (int) $liabilityAccount->id,
+                                debit: DecimalMath::ZERO,
+                                credit: $newPrincipal,
+                                memo: "Saldo inicial corregido de deuda: {$debt->name}",
+                            ),
+                        ];
+                        $movType = MovementType::OpeningBalance;
+                        $desc = "Saldo inicial de deuda {$debt->name}";
+                    }
+
+                    $journalPoster->post($user, new PostJournalEntryData(
+                        entryDate: $entryDate,
+                        movementType: $movType,
+                        description: $desc,
+                        lines: $lines,
+                        currencyCode: $debt->currency_code,
+                        reference: "DEBT-{$debt->id}",
+                        metadata: ['debt_id' => $debt->id],
+                    ));
+                }
+
+                $debt->original_principal = $newPrincipal;
+            });
+        }
 
         $interest = isset($validated['editInterestRateAnnual']) && $validated['editInterestRateAnnual'] !== ''
             ? DecimalMath::normalize($validated['editInterestRateAnnual'])
