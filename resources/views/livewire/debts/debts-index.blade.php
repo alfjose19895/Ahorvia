@@ -465,7 +465,7 @@
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Monto del crédito / principal *</label>
+                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Monto Original *</label>
                             <div class="relative mt-1">
                                 <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400">$</span>
                                 <input type="text" wire:model="editOriginalPrincipal" placeholder="5000.00" class="w-full rounded-xl border border-slate-200 pl-7 pr-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white font-medium" />
