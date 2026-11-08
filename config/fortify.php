@@ -14,7 +14,7 @@ $features = [
     ]),
 ];
 
-if ((bool) env('AHORVIA_REGISTRATION_ENABLED', false)) {
+if ((bool) env('AHORVIA_REGISTRATION_ENABLED', true)) {
     array_unshift($features, Features::registration());
 }
 

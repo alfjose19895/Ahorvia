@@ -37,6 +37,7 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::redirectUserForTwoFactorAuthenticationUsing(RedirectIfTwoFactorAuthenticatable::class);
 
         Fortify::loginView(static fn () => view('auth.login'));
+        Fortify::registerView(static fn () => view('auth.register'));
         Fortify::requestPasswordResetLinkView(static fn () => view('auth.forgot-password'));
         Fortify::resetPasswordView(static fn (Request $request) => view('auth.reset-password', ['request' => $request]));
         Fortify::twoFactorChallengeView(static fn () => view('auth.two-factor-challenge'));

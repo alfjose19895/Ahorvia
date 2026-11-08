@@ -66,6 +66,25 @@ class SavingsPlannerIndex extends Component
 
     public ?string $contributionNotes = null;
 
+    // Formulario de edición de meta
+    public bool $showEditModal = false;
+
+    public ?int $editGoalId = null;
+
+    public string $editName = '';
+
+    public string $editTargetAmount = '';
+
+    public int $editDurationMonths = 6;
+
+    public string $editMode = 'adjustable';
+
+    public ?int $editLinkedAccountId = null;
+
+    public string $editStatus = 'active';
+
+    public ?string $editNotes = null;
+
     public function mount(): void
     {
         $this->contributionDate = CarbonImmutable::now()->toDateString();
@@ -192,6 +211,93 @@ class SavingsPlannerIndex extends Component
 
         $this->showContributionModal = false;
         session()->flash('status', 'Aporte registrado con respaldo financiero contable.');
+    }
+
+    public function openEditModal(int $goalId): void
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        /** @var SavingsGoal $goal */
+        $goal = SavingsGoal::query()->ownedBy($user)->findOrFail($goalId);
+
+        $this->editGoalId = $goal->id;
+        $this->editName = $goal->name;
+        $this->editTargetAmount = (string) $goal->target_amount;
+        $this->editDurationMonths = $goal->duration_months;
+        $this->editMode = $goal->mode->value;
+        $this->editLinkedAccountId = $goal->linked_account_id ? (int) $goal->linked_account_id : null;
+        $this->editStatus = $goal->status->value;
+        $this->editNotes = $goal->notes;
+
+        $this->resetValidation();
+        $this->showEditModal = true;
+    }
+
+    public function closeEditModal(): void
+    {
+        $this->showEditModal = false;
+        $this->editGoalId = null;
+        $this->resetValidation();
+    }
+
+    public function updateGoal(): void
+    {
+        if ($this->editGoalId === null) {
+            return;
+        }
+
+        /** @var User $user */
+        $user = Auth::user();
+        /** @var SavingsGoal $goal */
+        $goal = SavingsGoal::query()->ownedBy($user)->findOrFail($this->editGoalId);
+
+        $validated = $this->validate([
+            'editName' => ['required', 'string', 'max:255'],
+            'editTargetAmount' => ['required', 'regex:/^\d+(\.\d{1,4})?$/', 'not_in:0,0.0,0.00,0.000,0.0000'],
+            'editDurationMonths' => ['required', 'integer', 'between:1,60'],
+            'editMode' => ['required', Rule::in(['fixed', 'adjustable'])],
+            'editLinkedAccountId' => ['nullable', 'integer', Rule::exists('accounts', 'id')->where('user_id', $user->id)->where('is_active', true)],
+            'editStatus' => ['required', Rule::in(['active', 'completed', 'cancelled', 'paused'])],
+            'editNotes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $status = SavingsGoalStatus::from($validated['editStatus']);
+
+        $goal->update([
+            'name' => trim($validated['editName']),
+            'target_amount' => DecimalMath::normalize($validated['editTargetAmount']),
+            'duration_months' => (int) $validated['editDurationMonths'],
+            'mode' => SavingsMode::from($validated['editMode']),
+            'linked_account_id' => $validated['editLinkedAccountId'] ?? null,
+            'status' => $status,
+            'notes' => isset($validated['editNotes']) && trim((string) $validated['editNotes']) !== '' ? trim((string) $validated['editNotes']) : null,
+            'completed_at' => $status === SavingsGoalStatus::Completed && $goal->completed_at === null ? CarbonImmutable::now() : ($status !== SavingsGoalStatus::Completed ? null : $goal->completed_at),
+        ]);
+
+        $this->closeEditModal();
+        session()->flash('status', 'Meta de ahorro actualizada con éxito.');
+    }
+
+    public function deleteGoal(int $goalId): void
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        /** @var SavingsGoal $goal */
+        $goal = SavingsGoal::query()->ownedBy($user)->findOrFail($goalId);
+
+        if ($goal->contributions()->count() > 0) {
+            session()->flash('error', 'No se puede eliminar una meta de ahorro que tiene aportes contables registrados. Puedes marcarla como cancelada en Editar.');
+
+            return;
+        }
+
+        $goal->delete();
+
+        if ($this->editGoalId === $goalId) {
+            $this->closeEditModal();
+        }
+
+        session()->flash('status', 'Meta de ahorro eliminada con éxito.');
     }
 
     public function render(

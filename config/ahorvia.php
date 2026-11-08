@@ -47,7 +47,7 @@ return [
     | activación por pago único sin acoplar pasarelas en el MVP.
     */
     'auth' => [
-        'registration_enabled' => (bool) env('AHORVIA_REGISTRATION_ENABLED', false),
+        'registration_enabled' => (bool) env('AHORVIA_REGISTRATION_ENABLED', true),
         'enforce_active_access' => true,
         'login_max_attempts' => 5,
         'two_factor_max_attempts' => 5,

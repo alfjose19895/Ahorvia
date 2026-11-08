@@ -90,7 +90,10 @@
     </form>
 
     <div class="mt-6 border-t border-slate-100 pt-4 text-center text-xs text-[#64748B] dark:border-slate-800 dark:text-slate-400">
-        Acceso privado protegido con cifrado de sesión y soporte 2FA.
+        ¿No tienes una cuenta aún?
+        <a href="{{ route('register') }}" class="font-semibold text-[#10B981] hover:text-[#064E3B] dark:hover:text-emerald-300">
+            Regístrate en Ahorvia
+        </a>
     </div>
 </x-layouts.guest>
 

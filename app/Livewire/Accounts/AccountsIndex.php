@@ -6,14 +6,18 @@ namespace App\Livewire\Accounts;
 
 use App\Actions\Accounts\CreateAccountAction;
 use App\Actions\Transactions\RecordTransferAction;
+use App\Actions\Transactions\ReverseJournalEntryAction;
 use App\Enums\AccountType;
+use App\Enums\EntryStatus;
 use App\Models\Account;
+use App\Models\JournalEntry;
 use App\Models\User;
 use App\Services\Finance\AccountBalanceService;
 use App\Support\DecimalMath;
 use App\Support\MoneyFormatter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -227,6 +231,44 @@ class AccountsIndex extends Component
 
         $msg = $account->is_active ? 'Cuenta activada correctamente.' : 'Cuenta desactivada.';
         session()->flash('status', $msg);
+    }
+
+    public function deleteAccount(int $accountId, ReverseJournalEntryAction $reverseAction): void
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        /** @var Account $account */
+        $account = Account::query()->ownedBy($user)->findOrFail($accountId);
+
+        // Contar asientos que involucran esta cuenta
+        $entries = JournalEntry::query()
+            ->ownedBy($user)
+            ->where('status', EntryStatus::Posted)
+            ->whereHas('lines', static fn ($q) => $q->where('account_id', $account->id))
+            ->get();
+
+        // Si tiene más asientos aparte del saldo inicial, o asientos que no son de apertura
+        $nonOpeningEntries = $entries->filter(static fn (JournalEntry $e) => ! str_starts_with((string) $e->reference, 'OPENING-'));
+
+        if ($nonOpeningEntries->isNotEmpty()) {
+            session()->flash('error', 'No se puede eliminar una cuenta que tiene transacciones registradas. Puedes desactivarla para ocultarla.');
+
+            return;
+        }
+
+        DB::transaction(function () use ($user, $account, $entries, $reverseAction): void {
+            foreach ($entries as $entry) {
+                $reverseAction->execute($user, $entry, "Anulación de cuenta [{$account->name}] creada por error.");
+            }
+
+            $account->delete();
+        });
+
+        if ($this->editingAccountId === $accountId) {
+            $this->closeEditModal();
+        }
+
+        session()->flash('status', 'Cuenta eliminada con éxito y asientos de apertura revertidos.');
     }
 
     public function openTransferModal(?int $sourceAccountId = null): void

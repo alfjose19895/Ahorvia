@@ -6,16 +6,21 @@ namespace App\Livewire\Debts;
 
 use App\Actions\Debts\CreateDebtAction;
 use App\Actions\Debts\RecordDebtPaymentAction;
+use App\Actions\Transactions\ReverseJournalEntryAction;
 use App\Enums\AccountType;
+use App\Enums\DebtStatus;
 use App\Enums\DebtType;
+use App\Enums\EntryStatus;
 use App\Models\Account;
 use App\Models\Debt;
+use App\Models\JournalEntry;
 use App\Models\User;
 use App\Services\Debt\DebtBalanceService;
 use App\Support\DecimalMath;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -26,6 +31,8 @@ use Livewire\Component;
 class DebtsIndex extends Component
 {
     public bool $showCreateModal = false;
+
+    public bool $showEditModal = false;
 
     public bool $showPaymentModal = false;
 
@@ -49,6 +56,27 @@ class DebtsIndex extends Component
     public ?int $disbursementAccountId = null;
 
     public ?string $notes = null;
+
+    // Campos de edición de deuda
+    public ?int $editingDebtId = null;
+
+    public string $editName = '';
+
+    public string $editDebtType = 'personal_loan';
+
+    public ?string $editCreditorName = null;
+
+    public ?string $editInterestRateAnnual = null;
+
+    public ?string $editMinimumPayment = null;
+
+    public ?string $editDueDate = null;
+
+    public ?int $editPaymentDueDay = null;
+
+    public ?string $editNotes = null;
+
+    public string $editStatus = 'active';
 
     // Campos de abono a deuda
     public ?int $selectedDebtId = null;
@@ -126,7 +154,138 @@ class DebtsIndex extends Component
         ]);
 
         $this->showCreateModal = false;
-        session()->flash('status', 'Deuda registrada exitosamente con su cuenta contable de pasivo.');
+        session()->flash('status', 'Deuda / crédito registrada exitosamente con su cuenta contable de pasivo.');
+    }
+
+    public function openEditModal(int $debtId): void
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        /** @var Debt $debt */
+        $debt = Debt::query()->ownedBy($user)->findOrFail($debtId);
+
+        $this->editingDebtId = $debt->id;
+        $this->editName = $debt->name;
+        $this->editDebtType = $debt->type->value;
+        $this->editCreditorName = $debt->creditor_name;
+        $this->editInterestRateAnnual = $debt->interest_rate_annual !== null ? (string) $debt->interest_rate_annual : null;
+        $this->editMinimumPayment = $debt->minimum_payment !== null ? (string) $debt->minimum_payment : null;
+        $this->editDueDate = $debt->due_date ? CarbonImmutable::parse($debt->due_date)->toDateString() : null;
+        $this->editPaymentDueDay = $debt->payment_due_day;
+        $this->editNotes = $debt->notes;
+        $this->editStatus = $debt->status->value;
+
+        $this->resetValidation();
+        $this->showEditModal = true;
+    }
+
+    public function closeEditModal(): void
+    {
+        $this->showEditModal = false;
+        $this->editingDebtId = null;
+        $this->resetValidation();
+    }
+
+    public function updateDebt(): void
+    {
+        if ($this->editingDebtId === null) {
+            return;
+        }
+
+        /** @var User $user */
+        $user = Auth::user();
+        /** @var Debt $debt */
+        $debt = Debt::query()->ownedBy($user)->findOrFail($this->editingDebtId);
+
+        $validated = $this->validate([
+            'editName' => ['required', 'string', 'max:255'],
+            'editDebtType' => ['required', Rule::in(['personal_loan', 'bank_loan', 'mortgage', 'informal_debt'])],
+            'editCreditorName' => ['nullable', 'string', 'max:255'],
+            'editInterestRateAnnual' => ['nullable', 'regex:/^\d+(\.\d{1,4})?$/'],
+            'editMinimumPayment' => ['nullable', 'regex:/^\d+(\.\d{1,4})?$/'],
+            'editDueDate' => ['nullable', 'date'],
+            'editPaymentDueDay' => ['nullable', 'integer', 'between:1,31'],
+            'editNotes' => ['nullable', 'string', 'max:1000'],
+            'editStatus' => ['required', Rule::in(['active', 'paid_off', 'cancelled'])],
+        ]);
+
+        $interest = isset($validated['editInterestRateAnnual']) && $validated['editInterestRateAnnual'] !== ''
+            ? DecimalMath::normalize($validated['editInterestRateAnnual'])
+            : '0.0000';
+
+        $minPayment = isset($validated['editMinimumPayment']) && $validated['editMinimumPayment'] !== ''
+            ? DecimalMath::normalize($validated['editMinimumPayment'])
+            : '0.0000';
+
+        $debt->update([
+            'name' => trim($validated['editName']),
+            'type' => DebtType::from($validated['editDebtType']),
+            'creditor_name' => isset($validated['editCreditorName']) && trim((string) $validated['editCreditorName']) !== '' ? trim((string) $validated['editCreditorName']) : null,
+            'interest_rate_annual' => $interest,
+            'minimum_payment' => $minPayment,
+            'due_date' => $validated['editDueDate'] ?? null,
+            'payment_due_day' => $validated['editPaymentDueDay'] ?? null,
+            'notes' => isset($validated['editNotes']) && trim((string) $validated['editNotes']) !== '' ? trim((string) $validated['editNotes']) : null,
+            'status' => DebtStatus::from($validated['editStatus']),
+        ]);
+
+        if ($debt->liabilityAccount !== null) {
+            $debt->liabilityAccount->update([
+                'name' => trim($validated['editName']).' (Pasivo)',
+                'institution_name' => isset($validated['editCreditorName']) && trim((string) $validated['editCreditorName']) !== '' ? trim((string) $validated['editCreditorName']) : null,
+                'interest_rate_annual' => $interest,
+                'payment_due_day' => $validated['editPaymentDueDay'] ?? null,
+                'is_active' => $validated['editStatus'] === 'active',
+            ]);
+        }
+
+        $this->closeEditModal();
+        session()->flash('status', '¡Crédito / Préstamo actualizado con éxito!');
+    }
+
+    public function deleteDebt(int $debtId, ReverseJournalEntryAction $reverseAction): void
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        /** @var Debt $debt */
+        $debt = Debt::query()->ownedBy($user)->findOrFail($debtId);
+
+        if ($debt->payments()->count() > 0) {
+            session()->flash('error', 'No se puede eliminar un crédito con abonos de pago registrados. Reversa primero sus abonos en la sección de Movimientos.');
+
+            return;
+        }
+
+        DB::transaction(function () use ($user, $debt, $reverseAction): void {
+            // Reversar asiento contable inicial vinculado a esta deuda
+            $entries = JournalEntry::query()
+                ->ownedBy($user)
+                ->where('status', EntryStatus::Posted)
+                ->where(function ($query) use ($debt): void {
+                    $query->where('reference', "DEBT-{$debt->id}")
+                        ->orWhereJsonContains('metadata->debt_id', $debt->id);
+                })
+                ->get();
+
+            foreach ($entries as $entry) {
+                $reverseAction->execute($user, $entry, "Anulación de crédito [{$debt->name}] creado por error.");
+            }
+
+            $liabilityAccount = $debt->liabilityAccount;
+            $debt->delete();
+
+            if ($liabilityAccount !== null) {
+                $hasActiveLines = $liabilityAccount->journalLines()
+                    ->whereHas('journalEntry', static fn ($q) => $q->where('status', EntryStatus::Posted))
+                    ->exists();
+
+                if (! $hasActiveLines) {
+                    $liabilityAccount->update(['is_active' => false]);
+                }
+            }
+        });
+
+        session()->flash('status', 'El crédito creado por error ha sido anulado y eliminado correctamente.');
     }
 
     public function openPaymentModal(int $debtId): void

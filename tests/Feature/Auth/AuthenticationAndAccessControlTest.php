@@ -34,16 +34,28 @@ class AuthenticationAndAccessControlTest extends TestCase
             ->assertHeader('X-Content-Type-Options', 'nosniff');
     }
 
-    public function test_public_registration_is_disabled_by_default(): void
+    public function test_user_can_register_and_receive_default_categories(): void
     {
-        $this->get('/register')->assertNotFound();
+        $response = $this->get('/register');
+        $response->assertOk()
+            ->assertSee('Comienza con Ahorvia')
+            ->assertSee('Crear cuenta');
 
-        $this->post('/register', [
-            'name' => 'Intruso',
-            'email' => 'intruso@example.com',
+        $registerResponse = $this->post('/register', [
+            'name' => 'Nuevo Usuario',
+            'email' => 'nuevo@ahorvia.test',
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
-        ])->assertNotFound();
+            'currency_code' => 'USD',
+        ]);
+
+        $registerResponse->assertRedirect('/dashboard');
+        $this->assertAuthenticated();
+
+        $newUser = User::where('email', 'nuevo@ahorvia.test')->first();
+        $this->assertNotNull($newUser);
+        $this->assertSame('USD', $newUser->currency_code);
+        $this->assertSame(12, $newUser->categories()->count());
     }
 
     public function test_active_user_can_authenticate_and_logout(): void
