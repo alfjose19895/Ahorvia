@@ -214,8 +214,8 @@ class CardsIndex extends Component
         $this->editCardDebtId = $card->id;
         $this->editName = $card->name;
         $this->editBankName = $card->creditor_name;
-        $this->editCreditLimit = (string) $card->credit_limit;
-        $this->editInterestRateAnnual = $card->interest_rate_annual ? (string) $card->interest_rate_annual : null;
+        $this->editCreditLimit = DecimalMath::formatDecimal((string) $card->credit_limit);
+        $this->editInterestRateAnnual = $card->interest_rate_annual ? DecimalMath::formatDecimal((string) $card->interest_rate_annual) : null;
         $this->editCutoffDay = $card->cutoff_day;
         $this->editPaymentDueDay = $card->payment_due_day;
         $this->editNotes = $card->notes;

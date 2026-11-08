@@ -93,7 +93,7 @@ class BudgetsIndex extends Component
         foreach ($expenseCategories as $category) {
             $existing = $existingLines->get($category->id);
             $this->limits[$category->id] = $existing !== null
-                ? (string) $existing->limit_amount
+                ? DecimalMath::formatDecimal((string) $existing->limit_amount)
                 : '';
         }
 

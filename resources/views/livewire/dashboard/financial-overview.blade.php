@@ -247,7 +247,7 @@
                                 <span class="font-medium text-[#0F172A] dark:text-slate-200">{{ $item['category'] }}</span>
                             </div>
                             <span class="font-bold tabular-nums text-[#EF4444]">
-                                {{ $metrics->format(number_format($item['amount'], 4, '.', '')) }}
+                                {{ $metrics->format(number_format((float) $item['amount'], 2, '.', '')) }}
                             </span>
                         </li>
                     @endforeach

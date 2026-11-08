@@ -173,11 +173,11 @@ class DebtsIndex extends Component
 
         $this->editingDebtId = $debt->id;
         $this->editName = $debt->name;
-        $this->editOriginalPrincipal = (string) $debt->original_principal;
+        $this->editOriginalPrincipal = DecimalMath::formatDecimal((string) $debt->original_principal);
         $this->editDebtType = $debt->type->value;
         $this->editCreditorName = $debt->creditor_name;
-        $this->editInterestRateAnnual = $debt->interest_rate_annual !== null ? (string) $debt->interest_rate_annual : null;
-        $this->editMinimumPayment = $debt->minimum_payment !== null ? (string) $debt->minimum_payment : null;
+        $this->editInterestRateAnnual = $debt->interest_rate_annual !== null ? DecimalMath::formatDecimal((string) $debt->interest_rate_annual) : null;
+        $this->editMinimumPayment = $debt->minimum_payment !== null ? DecimalMath::formatDecimal((string) $debt->minimum_payment) : null;
         $this->editDueDate = $debt->due_date ? CarbonImmutable::parse($debt->due_date)->toDateString() : null;
         $this->editPaymentDueDay = $debt->payment_due_day;
         $this->editNotes = $debt->notes;

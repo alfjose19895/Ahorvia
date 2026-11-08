@@ -56,4 +56,16 @@ class DecimalMathAndMoneyFormatterTest extends TestCase
             MoneyFormatter::format('0', 'EUR')
         );
     }
+
+    public function test_decimal_math_format_decimal_formats_to_two_decimals(): void
+    {
+        $this->assertSame('15.60', DecimalMath::formatDecimal('15.6000'));
+        $this->assertSame('64.01', DecimalMath::formatDecimal('64.0100'));
+        $this->assertSame('1914.31', DecimalMath::formatDecimal('1914.3100'));
+        $this->assertSame('5000.00', DecimalMath::formatDecimal('5000'));
+        $this->assertSame('0.00', DecimalMath::formatDecimal('0'));
+        $this->assertSame('-45.50', DecimalMath::formatDecimal('-45.5000'));
+        $this->assertSame('', DecimalMath::formatDecimal(null));
+        $this->assertSame('', DecimalMath::formatDecimal(''));
+    }
 }

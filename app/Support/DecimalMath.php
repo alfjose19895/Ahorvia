@@ -78,4 +78,26 @@ final class DecimalMath
     {
         return self::compare($value, self::ZERO) < 0;
     }
+
+    public static function formatDecimal(string|int|float|null $value, int $decimals = 2): string
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return '';
+        }
+
+        $raw = trim((string) $value);
+        if (! is_numeric($raw)) {
+            return $raw;
+        }
+
+        $normalized = self::normalize($raw);
+        $isNegative = str_starts_with($normalized, '-');
+        $unsigned = ltrim($normalized, '-');
+
+        [$integerPart, $fractionPart] = array_pad(explode('.', $unsigned, 2), 2, '00');
+        $trimmedFraction = substr(str_pad($fractionPart, $decimals, '0'), 0, $decimals);
+        $sign = $isNegative ? '-' : '';
+
+        return $decimals > 0 ? "{$sign}{$integerPart}.{$trimmedFraction}" : "{$sign}{$integerPart}";
+    }
 }

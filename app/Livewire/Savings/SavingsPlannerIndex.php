@@ -222,7 +222,7 @@ class SavingsPlannerIndex extends Component
 
         $this->editGoalId = $goal->id;
         $this->editName = $goal->name;
-        $this->editTargetAmount = (string) $goal->target_amount;
+        $this->editTargetAmount = DecimalMath::formatDecimal((string) $goal->target_amount);
         $this->editDurationMonths = $goal->duration_months;
         $this->editMode = $goal->mode->value;
         $this->editLinkedAccountId = $goal->linked_account_id ? (int) $goal->linked_account_id : null;

@@ -44,7 +44,7 @@ class AccountsIndex extends Component
 
     public ?string $account_number_last4 = null;
 
-    public string $opening_balance = '0.0000';
+    public string $opening_balance = '0.00';
 
     public ?string $credit_limit = null;
 
@@ -52,7 +52,7 @@ class AccountsIndex extends Component
 
     public ?int $payment_due_day = null;
 
-    public string $interest_rate_annual = '0.0000';
+    public string $interest_rate_annual = '0.00';
 
     public bool $include_in_net_worth = true;
 
@@ -73,7 +73,7 @@ class AccountsIndex extends Component
 
     public ?int $editPaymentDueDay = null;
 
-    public string $editInterestRateAnnual = '0.0000';
+    public string $editInterestRateAnnual = '0.00';
 
     public bool $editIncludeInNetWorth = true;
 
@@ -162,10 +162,10 @@ class AccountsIndex extends Component
         $this->editName = $account->name;
         $this->editInstitutionName = $account->institution_name;
         $this->editAccountNumberLast4 = $account->account_number_last4;
-        $this->editCreditLimit = $account->credit_limit !== null ? (string) $account->credit_limit : null;
+        $this->editCreditLimit = $account->credit_limit !== null ? DecimalMath::formatDecimal((string) $account->credit_limit) : null;
         $this->editBillingCutoffDay = $account->billing_cutoff_day;
         $this->editPaymentDueDay = $account->payment_due_day;
-        $this->editInterestRateAnnual = (string) $account->interest_rate_annual;
+        $this->editInterestRateAnnual = DecimalMath::formatDecimal((string) $account->interest_rate_annual);
         $this->editIncludeInNetWorth = (bool) $account->include_in_net_worth;
         $this->editIsActive = (bool) $account->is_active;
         $this->editNotes = $account->notes;
@@ -390,11 +390,11 @@ class AccountsIndex extends Component
         $this->type = 'checking';
         $this->institution_name = null;
         $this->account_number_last4 = null;
-        $this->opening_balance = '0.0000';
+        $this->opening_balance = '0.00';
         $this->credit_limit = null;
         $this->billing_cutoff_day = null;
         $this->payment_due_day = null;
-        $this->interest_rate_annual = '0.0000';
+        $this->interest_rate_annual = '0.00';
         $this->include_in_net_worth = true;
         $this->notes = null;
         $this->resetValidation();
