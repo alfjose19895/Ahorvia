@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Debt;
 
-use App\Enums\DebtType;
 use App\Enums\EntryStatus;
 use App\Models\Debt;
 use App\Models\DebtPayment;
@@ -43,7 +42,7 @@ class DebtBalanceService
      */
     public function availableCredit(Debt $debt): string
     {
-        if ($debt->type !== DebtType::CreditCard || $debt->credit_limit === null) {
+        if (! $debt->isCreditCard() || $debt->credit_limit === null) {
             return DecimalMath::ZERO;
         }
 

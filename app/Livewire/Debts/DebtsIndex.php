@@ -16,6 +16,7 @@ use App\Enums\EntryStatus;
 use App\Enums\MovementType;
 use App\Models\Account;
 use App\Models\Debt;
+use App\Models\DebtTypeCatalog;
 use App\Models\FinancialInstitution;
 use App\Models\JournalEntry;
 use App\Models\User;
@@ -27,6 +28,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -103,6 +105,62 @@ class DebtsIndex extends Component
 
     public ?string $paymentNotes = null;
 
+    // Catálogo Maestro: Creación rápida de Tipo de Deuda al vuelo
+    public bool $showQuickDebtTypeModal = false;
+
+    public string $quickDebtTypeName = '';
+
+    public function openQuickDebtTypeModal(): void
+    {
+        $this->quickDebtTypeName = '';
+        $this->resetValidation('quickDebtTypeName');
+        $this->showQuickDebtTypeModal = true;
+    }
+
+    public function closeQuickDebtTypeModal(): void
+    {
+        $this->showQuickDebtTypeModal = false;
+        $this->quickDebtTypeName = '';
+        $this->resetValidation('quickDebtTypeName');
+    }
+
+    public function saveQuickDebtType(): void
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $this->validate([
+            'quickDebtTypeName' => ['required', 'string', 'max:120'],
+        ]);
+
+        $name = trim($this->quickDebtTypeName);
+        $slug = Str::slug($name, '_');
+        if ($slug === '') {
+            $slug = 'custom_debt_'.time();
+        }
+
+        $baseSlug = $slug;
+        $counter = 1;
+        while (DebtTypeCatalog::query()->ownedBy($user)->where('slug', $slug)->exists()) {
+            $slug = $baseSlug.'_'.$counter;
+            $counter++;
+        }
+
+        /** @var DebtTypeCatalog $newType */
+        $newType = DebtTypeCatalog::query()->firstOrCreate(
+            ['user_id' => $user->id, 'slug' => $slug],
+            ['name' => $name, 'is_system' => false, 'is_active' => true]
+        );
+
+        if ($this->showEditModal) {
+            $this->editDebtType = $newType->slug;
+        } else {
+            $this->debtType = $newType->slug;
+        }
+
+        $this->showQuickDebtTypeModal = false;
+        $this->quickDebtTypeName = '';
+    }
+
     public function mount(): void
     {
         $this->paymentDate = CarbonImmutable::now()->toDateString();
@@ -137,7 +195,13 @@ class DebtsIndex extends Component
 
         $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'debtType' => ['required', Rule::in(['personal_loan', 'bank_loan', 'mortgage', 'informal_debt'])],
+            'debtType' => ['required', 'string', 'max:40', function (string $attribute, mixed $value, \Closure $fail) use ($user): void {
+                $exists = DebtTypeCatalog::query()->ownedBy($user)->active()->where('slug', (string) $value)->exists()
+                    || DebtType::tryFrom((string) $value) !== null;
+                if (! $exists) {
+                    $fail('El tipo de deuda seleccionado no es válido.');
+                }
+            }],
             'creditorName' => ['nullable', 'string', 'max:255'],
             'originalPrincipal' => ['required', 'regex:/^\d+(\.\d{1,4})?$/', 'not_in:0,0.0,0.00,0.000,0.0000'],
             'interestRateAnnual' => ['nullable', 'regex:/^\d+(\.\d{1,4})?$/'],
@@ -150,7 +214,7 @@ class DebtsIndex extends Component
 
         $action->execute($user, [
             'name' => $this->name,
-            'type' => DebtType::from($this->debtType),
+            'type' => $this->debtType,
             'creditor_name' => $this->creditorName,
             'original_principal' => $this->originalPrincipal,
             'interest_rate_annual' => $this->interestRateAnnual,
@@ -219,7 +283,13 @@ class DebtsIndex extends Component
         $validated = $this->validate([
             'editName' => ['required', 'string', 'max:255'],
             'editOriginalPrincipal' => ['required', 'regex:/^\d+(\.\d{1,4})?$/', 'not_in:0,0.0,0.00,0.000,0.0000'],
-            'editDebtType' => ['required', Rule::in(['personal_loan', 'bank_loan', 'mortgage', 'informal_debt'])],
+            'editDebtType' => ['required', 'string', 'max:40', function (string $attribute, mixed $value, \Closure $fail) use ($user): void {
+                $exists = DebtTypeCatalog::query()->ownedBy($user)->active()->where('slug', (string) $value)->exists()
+                    || DebtType::tryFrom((string) $value) !== null;
+                if (! $exists) {
+                    $fail('El tipo de deuda seleccionado no es válido.');
+                }
+            }],
             'editCreditorName' => ['nullable', 'string', 'max:255'],
             'editInterestRateAnnual' => ['nullable', 'regex:/^\d+(\.\d{1,4})?$/'],
             'editMinimumPayment' => ['nullable', 'regex:/^\d+(\.\d{1,4})?$/'],
@@ -348,7 +418,7 @@ class DebtsIndex extends Component
 
         $debt->update([
             'name' => trim($validated['editName']),
-            'type' => DebtType::from($validated['editDebtType']),
+            'type' => $validated['editDebtType'],
             'creditor_name' => isset($validated['editCreditorName']) && trim((string) $validated['editCreditorName']) !== '' ? trim((string) $validated['editCreditorName']) : null,
             'interest_rate_annual' => $interest,
             'minimum_payment' => $minPayment,
@@ -537,11 +607,23 @@ class DebtsIndex extends Component
             ->orderBy('name')
             ->pluck('name');
 
+        if (DebtTypeCatalog::query()->ownedBy($user)->count() === 0) {
+            app(LedgerBootstrapService::class)->ensureDefaultDebtTypes($user);
+        }
+
+        $debtTypes = DebtTypeCatalog::query()
+            ->ownedBy($user)
+            ->active()
+            ->orderByDesc('is_system')
+            ->orderBy('name')
+            ->get();
+
         return view('livewire.debts.debts-index', [
             'debtsData' => $debtsData,
             'liquidAccounts' => $liquidAccounts,
             'selectedDebt' => $selectedDebt,
             'institutions' => $institutions,
+            'debtTypes' => $debtTypes,
             'totalPendingPrincipal' => $totalPendingPrincipal,
             'totalPrincipalPaid' => $totalPrincipalPaid,
             'totalInterestFeesPaid' => $totalInterestFeesPaid,

@@ -67,6 +67,7 @@ class CreateAhorviaUserCommand extends Command
         $bootstrap = app(LedgerBootstrapService::class);
         $bootstrap->ensureDefaultCategories($user);
         $bootstrap->ensureDefaultInstitutions($user);
+        $bootstrap->ensureDefaultDebtTypes($user);
 
         $this->info("Usuario [{$user->email}] creado y activado correctamente en Ahorvia.");
 

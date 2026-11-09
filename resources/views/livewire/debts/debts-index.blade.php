@@ -261,12 +261,16 @@
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Tipo de deuda *</label>
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Tipo de deuda *</label>
+                                <button type="button" wire:click="openQuickDebtTypeModal" class="text-[11px] font-semibold text-[#10B981] hover:underline">
+                                    + Nueva opción
+                                </button>
+                            </div>
                             <select wire:model="debtType" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                                <option value="personal_loan">Préstamo personal</option>
-                                <option value="bank_loan">Préstamo bancario</option>
-                                <option value="mortgage">Crédito hipotecario</option>
-                                <option value="informal_debt">Deuda informal / amigos</option>
+                                @foreach ($debtTypes as $dt)
+                                    <option value="{{ $dt->slug }}">{{ $dt->name }}</option>
+                                @endforeach
                             </select>
                             @error('debtType') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
                         </div>
@@ -446,12 +450,16 @@
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Tipo de deuda *</label>
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Tipo de deuda *</label>
+                                <button type="button" wire:click="openQuickDebtTypeModal" class="text-[11px] font-semibold text-[#10B981] hover:underline">
+                                    + Nueva opción
+                                </button>
+                            </div>
                             <select wire:model="editDebtType" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                                <option value="personal_loan">Préstamo personal</option>
-                                <option value="bank_loan">Préstamo bancario</option>
-                                <option value="mortgage">Crédito hipotecario</option>
-                                <option value="informal_debt">Deuda informal / amigos</option>
+                                @foreach ($debtTypes as $dt)
+                                    <option value="{{ $dt->slug }}">{{ $dt->name }}</option>
+                                @endforeach
                             </select>
                             @error('editDebtType') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
                         </div>
@@ -527,6 +535,54 @@
                         </button>
                         <button type="submit" class="rounded-xl bg-[#10B981] px-5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-[#064E3B]">
                             Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- Mini Modal: Creación rápida de Tipo de Deuda --}}
+    @if ($showQuickDebtTypeModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <div class="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+                    <h3 class="text-sm font-bold text-[#0F172A] dark:text-white">
+                        Nuevo Tipo de Deuda / Préstamo
+                    </h3>
+                    <button type="button" wire:click="closeQuickDebtTypeModal" class="text-slate-400 hover:text-slate-600">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form wire:submit="saveQuickDebtType" class="mt-4 space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-[#0F172A] dark:text-slate-200">Nombre de la opción *</label>
+                        <input
+                            type="text"
+                            wire:model="quickDebtTypeName"
+                            placeholder="Ej. Crédito vehicular, Crédito de estudios, Microcrédito..."
+                            class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-[#0F172A] dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                            autofocus
+                        />
+                        @error('quickDebtTypeName') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                            type="button"
+                            wire:click="closeQuickDebtTypeModal"
+                            class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-[#64748B] hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            class="rounded-xl bg-[#10B981] px-5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-[#064E3B]"
+                        >
+                            Guardar y Seleccionar
                         </button>
                     </div>
                 </form>

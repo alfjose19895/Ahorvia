@@ -57,6 +57,7 @@ class CreateNewUser implements CreatesNewUsers
         $bootstrap = app(LedgerBootstrapService::class);
         $bootstrap->ensureDefaultCategories($user);
         $bootstrap->ensureDefaultInstitutions($user);
+        $bootstrap->ensureDefaultDebtTypes($user);
 
         return $user;
     }

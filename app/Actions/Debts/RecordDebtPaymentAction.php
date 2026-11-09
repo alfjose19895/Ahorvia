@@ -7,7 +7,6 @@ namespace App\Actions\Debts;
 use App\Data\Finance\JournalLineInputData;
 use App\Data\Finance\PostJournalEntryData;
 use App\Enums\DebtStatus;
-use App\Enums\DebtType;
 use App\Enums\EntryStatus;
 use App\Enums\MovementType;
 use App\Exceptions\Finance\FinancialDomainException;
@@ -108,7 +107,7 @@ class RecordDebtPaymentAction
                     : CarbonImmutable::parse((string) $attributes['payment_date']))
                 : CarbonImmutable::now($user->timezone ?: 'UTC');
 
-            $movementType = $debt->type === DebtType::CreditCard
+            $movementType = $debt->isCreditCard()
                 ? MovementType::CardPayment
                 : MovementType::DebtPayment;
 

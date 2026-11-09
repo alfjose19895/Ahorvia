@@ -8,6 +8,7 @@ use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
 use App\Enums\CategoryType;
 use App\Models\Category;
+use App\Models\DebtTypeCatalog;
 use App\Models\FinancialInstitution;
 use App\Models\User;
 use App\Services\Finance\LedgerBootstrapService;
@@ -85,12 +86,21 @@ class SettingsManager extends Component
 
     public ?string $institutionStatus = null;
 
+    // Catálogo Maestro: Tipos de Deuda
+    public bool $showDebtTypeModal = false;
+
+    public ?int $editingDebtTypeId = null;
+
+    public string $debtTypeName = '';
+
+    public ?string $debtTypeStatus = null;
+
     public function mount(): void
     {
         $user = $this->currentUser();
         $this->authorize('view', $user);
 
-        if (request()->query('tab') && in_array(request()->query('tab'), ['profile', 'categories', 'institutions'], true)) {
+        if (request()->query('tab') && in_array(request()->query('tab'), ['profile', 'categories', 'institutions', 'debt_types'], true)) {
             $this->activeTab = (string) request()->query('tab');
         }
 
@@ -482,6 +492,121 @@ class SettingsManager extends Component
         $this->institutionStatus = "Institución '{$name}' eliminada del catálogo maestro.";
     }
 
+    public function openCreateDebtTypeModal(): void
+    {
+        $this->editingDebtTypeId = null;
+        $this->debtTypeName = '';
+        $this->debtTypeStatus = null;
+        $this->resetValidation();
+        $this->showDebtTypeModal = true;
+    }
+
+    public function openEditDebtTypeModal(int $id): void
+    {
+        $user = $this->currentUser();
+        /** @var DebtTypeCatalog $dt */
+        $dt = DebtTypeCatalog::query()->ownedBy($user)->findOrFail($id);
+
+        $this->editingDebtTypeId = $dt->id;
+        $this->debtTypeName = $dt->name;
+        $this->debtTypeStatus = null;
+        $this->resetValidation();
+        $this->showDebtTypeModal = true;
+    }
+
+    public function closeDebtTypeModal(): void
+    {
+        $this->showDebtTypeModal = false;
+        $this->editingDebtTypeId = null;
+        $this->resetValidation();
+    }
+
+    public function saveDebtType(): void
+    {
+        $user = $this->currentUser();
+        $this->validate([
+            'debtTypeName' => ['required', 'string', 'max:120'],
+        ]);
+
+        $name = trim($this->debtTypeName);
+
+        if ($this->editingDebtTypeId !== null) {
+            /** @var DebtTypeCatalog $dt */
+            $dt = DebtTypeCatalog::query()->ownedBy($user)->findOrFail($this->editingDebtTypeId);
+
+            $exists = DebtTypeCatalog::query()
+                ->ownedBy($user)
+                ->where('name', $name)
+                ->where('id', '!=', $dt->id)
+                ->exists();
+
+            if ($exists) {
+                $this->addError('debtTypeName', 'Ya existe un tipo de deuda con este nombre en tu catálogo.');
+
+                return;
+            }
+
+            $dt->update(['name' => $name]);
+            $this->debtTypeStatus = 'Tipo de deuda actualizado exitosamente.';
+        } else {
+            $slug = Str::slug($name, '_');
+            if ($slug === '') {
+                $slug = 'custom_debt_'.time();
+            }
+
+            $baseSlug = $slug;
+            $counter = 1;
+            while (DebtTypeCatalog::query()->ownedBy($user)->where('slug', $slug)->exists()) {
+                $slug = $baseSlug.'_'.$counter;
+                $counter++;
+            }
+
+            DebtTypeCatalog::query()->create([
+                'user_id' => $user->id,
+                'name' => $name,
+                'slug' => $slug,
+                'is_system' => false,
+                'is_active' => true,
+            ]);
+
+            $this->debtTypeStatus = 'Nuevo tipo de deuda registrado en el catálogo.';
+        }
+
+        $this->showDebtTypeModal = false;
+        $this->editingDebtTypeId = null;
+    }
+
+    public function toggleDebtTypeStatus(int $id): void
+    {
+        $user = $this->currentUser();
+        /** @var DebtTypeCatalog $dt */
+        $dt = DebtTypeCatalog::query()->ownedBy($user)->findOrFail($id);
+        $dt->is_active = ! $dt->is_active;
+        $dt->save();
+
+        $this->debtTypeStatus = $dt->is_active
+            ? "Tipo de deuda '{$dt->name}' activado."
+            : "Tipo de deuda '{$dt->name}' desactivado.";
+    }
+
+    public function deleteDebtType(int $id): void
+    {
+        $user = $this->currentUser();
+        /** @var DebtTypeCatalog $dt */
+        $dt = DebtTypeCatalog::query()->ownedBy($user)->findOrFail($id);
+
+        if ($dt->is_system) {
+            $this->debtTypeStatus = 'Los tipos de deuda base del sistema no pueden eliminarse, pero puedes desactivarlos.';
+
+            return;
+        }
+
+        $name = $dt->name;
+        $dt->delete();
+
+        $this->debtTypeStatus = "Tipo de deuda '{$name}' eliminado del catálogo maestro.";
+    }
+
     public function render(): View
     {
         $user = $this->currentUser()->fresh() ?? $this->currentUser();
@@ -492,6 +617,9 @@ class SettingsManager extends Component
         }
         if (FinancialInstitution::query()->ownedBy($user)->count() === 0) {
             $bootstrap->ensureDefaultInstitutions($user);
+        }
+        if (DebtTypeCatalog::query()->ownedBy($user)->count() === 0) {
+            $bootstrap->ensureDefaultDebtTypes($user);
         }
 
         /** @var array<string, array{name: string, symbol: string}> $currencies */
@@ -509,12 +637,18 @@ class SettingsManager extends Component
 
         $categories = $categoriesQuery->get();
         $institutions = FinancialInstitution::query()->ownedBy($user)->orderBy('name')->get();
+        $debtTypes = DebtTypeCatalog::query()
+            ->ownedBy($user)
+            ->orderByDesc('is_system')
+            ->orderBy('name')
+            ->get();
 
         return view('livewire.settings.settings-manager', [
             'user' => $user,
             'currencies' => $currencies,
             'categories' => $categories,
             'institutions' => $institutions,
+            'debtTypes' => $debtTypes,
             'commonTimezones' => [
                 'UTC' => 'UTC (Tiempo Universal Coordinado)',
                 'America/Bogota' => 'América / Bogotá (UTC-5)',

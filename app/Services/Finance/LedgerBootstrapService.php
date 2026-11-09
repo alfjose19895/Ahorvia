@@ -8,6 +8,7 @@ use App\Enums\AccountType;
 use App\Enums\CategoryType;
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\DebtTypeCatalog;
 use App\Models\FinancialInstitution;
 use App\Models\User;
 
@@ -120,6 +121,32 @@ class LedgerBootstrapService
                     'name' => $name,
                 ],
                 [
+                    'is_active' => true,
+                ]
+            );
+        }
+    }
+
+    public function ensureDefaultDebtTypes(User $user): void
+    {
+        $defaults = [
+            ['name' => 'Préstamo personal', 'slug' => 'personal_loan', 'is_system' => true],
+            ['name' => 'Préstamo bancario', 'slug' => 'bank_loan', 'is_system' => true],
+            ['name' => 'Crédito hipotecario', 'slug' => 'mortgage', 'is_system' => true],
+            ['name' => 'Crédito vehicular', 'slug' => 'vehicle_loan', 'is_system' => false],
+            ['name' => 'Crédito de estudios', 'slug' => 'student_loan', 'is_system' => false],
+            ['name' => 'Deuda informal / amigos', 'slug' => 'informal_debt', 'is_system' => true],
+        ];
+
+        foreach ($defaults as $item) {
+            DebtTypeCatalog::query()->firstOrCreate(
+                [
+                    'user_id' => $user->getKey(),
+                    'slug' => $item['slug'],
+                ],
+                [
+                    'name' => $item['name'],
+                    'is_system' => $item['is_system'],
                     'is_active' => true,
                 ]
             );

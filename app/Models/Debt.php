@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Data\DebtTypeDescriptor;
 use App\Enums\DebtStatus;
 use App\Enums\DebtType;
 use Carbon\CarbonInterface;
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $liability_account_id
  * @property int|null $budget_category_id
  * @property string $name
- * @property DebtType $type
+ * @property DebtType|DebtTypeDescriptor $type
  * @property DebtStatus $status
  * @property string|null $creditor_name
  * @property string $currency_code
@@ -70,7 +71,6 @@ class Debt extends UserOwnedModel
     protected function casts(): array
     {
         return [
-            'type' => DebtType::class,
             'status' => DebtStatus::class,
             'original_principal' => 'decimal:4',
             'credit_limit' => 'decimal:4',
@@ -81,6 +81,36 @@ class Debt extends UserOwnedModel
             'payment_due_day' => 'integer',
             'cutoff_day' => 'integer',
         ];
+    }
+
+    public function getTypeAttribute(mixed $value): DebtType|DebtTypeDescriptor
+    {
+        $rawValue = (string) $value;
+        $enum = DebtType::tryFrom($rawValue);
+        if ($enum !== null) {
+            return $enum;
+        }
+
+        $catalogName = DebtTypeCatalog::query()
+            ->where('user_id', $this->user_id)
+            ->where('slug', $rawValue)
+            ->value('name');
+
+        return DebtTypeDescriptor::fromValue($rawValue, $catalogName);
+    }
+
+    public function setTypeAttribute(mixed $value): void
+    {
+        if ($value instanceof DebtType || $value instanceof DebtTypeDescriptor) {
+            $this->attributes['type'] = $value->value;
+        } else {
+            $this->attributes['type'] = (string) $value;
+        }
+    }
+
+    public function isCreditCard(): bool
+    {
+        return ($this->attributes['type'] ?? null) === DebtType::CreditCard->value;
     }
 
     /**

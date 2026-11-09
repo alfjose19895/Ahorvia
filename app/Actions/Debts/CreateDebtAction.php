@@ -31,7 +31,7 @@ class CreateDebtAction
     /**
      * @param  array{
      *     name: string,
-     *     type: DebtType,
+     *     type: DebtType|string,
      *     creditor_name?: string|null,
      *     currency_code?: string|null,
      *     original_principal?: string|int|null,
@@ -50,8 +50,10 @@ class CreateDebtAction
      */
     public function execute(User $user, array $attributes): Debt
     {
-        /** @var DebtType $type */
+        /** @var DebtType|string $type */
         $type = $attributes['type'];
+        $isCard = ($type instanceof DebtType && $type === DebtType::CreditCard) || $type === DebtType::CreditCard->value;
+        $typeValue = $type instanceof DebtType ? $type->value : (string) $type;
         $currency = strtoupper($attributes['currency_code'] ?? ($user->currency_code ?: 'USD'));
 
         $principalRaw = $attributes['original_principal'] ?? '0.0000';
@@ -86,7 +88,8 @@ class CreateDebtAction
 
         return DB::transaction(function () use (
             $user,
-            $type,
+            $isCard,
+            $typeValue,
             $currency,
             $originalPrincipal,
             $creditLimit,
@@ -96,7 +99,7 @@ class CreateDebtAction
             $dueDate,
             $attributes
         ): Debt {
-            $accountType = $type === DebtType::CreditCard ? AccountType::CreditCard : AccountType::Loan;
+            $accountType = $isCard ? AccountType::CreditCard : AccountType::Loan;
 
             $liabilityAccount = Account::query()->create([
                 'user_id' => $user->getKey(),
@@ -119,7 +122,7 @@ class CreateDebtAction
                 'liability_account_id' => $liabilityAccount->getKey(),
                 'budget_category_id' => $attributes['budget_category_id'] ?? null,
                 'name' => trim($attributes['name']),
-                'type' => $type,
+                'type' => $typeValue,
                 'status' => DebtStatus::Active,
                 'creditor_name' => isset($attributes['creditor_name']) ? trim((string) $attributes['creditor_name']) : null,
                 'currency_code' => $currency,

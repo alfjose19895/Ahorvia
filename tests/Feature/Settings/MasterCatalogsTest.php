@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature\Settings;
 
 use App\Enums\CategoryType;
+use App\Livewire\Debts\DebtsIndex;
 use App\Livewire\Settings\SettingsManager;
 use App\Livewire\Transactions\TransactionsIndex;
 use App\Models\Category;
+use App\Models\Debt;
+use App\Models\DebtTypeCatalog;
 use App\Models\FinancialInstitution;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -132,5 +135,91 @@ class MasterCatalogsTest extends TestCase
         $this->assertNotNull($created);
         $this->assertSame(CategoryType::Expense, $created->type);
         $this->assertSame('#8B5CF6', $created->color);
+    }
+
+    public function test_user_can_create_edit_and_delete_debt_types_in_settings(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::actingAs($user)
+            ->test(SettingsManager::class)
+            ->set('activeTab', 'debt_types')
+            ->set('debtTypeName', 'Microcrédito Productivo')
+            ->call('saveDebtType')
+            ->assertHasNoErrors();
+
+        $debtType = DebtTypeCatalog::query()
+            ->ownedBy($user)
+            ->where('name', 'Microcrédito Productivo')
+            ->first();
+
+        $this->assertNotNull($debtType);
+        $this->assertSame('microcredito_productivo', $debtType->slug);
+        $this->assertFalse($debtType->is_system);
+        $this->assertTrue($debtType->is_active);
+
+        // Editar
+        Livewire::actingAs($user)
+            ->test(SettingsManager::class)
+            ->call('openEditDebtTypeModal', $debtType->id)
+            ->set('debtTypeName', 'Microcrédito Negocio Familiar')
+            ->call('saveDebtType')
+            ->assertHasNoErrors();
+
+        $this->assertSame('Microcrédito Negocio Familiar', $debtType->fresh()?->name);
+
+        // Desactivar
+        Livewire::actingAs($user)
+            ->test(SettingsManager::class)
+            ->call('toggleDebtTypeStatus', $debtType->id);
+
+        $this->assertFalse($debtType->fresh()?->is_active);
+
+        // Eliminar
+        Livewire::actingAs($user)
+            ->test(SettingsManager::class)
+            ->call('deleteDebtType', $debtType->id);
+
+        $this->assertDatabaseMissing('debt_types', ['id' => $debtType->id]);
+    }
+
+    public function test_user_can_quick_add_debt_type_from_debts_modal_and_create_debt(): void
+    {
+        $user = User::factory()->create();
+
+        $component = Livewire::actingAs($user)
+            ->test(DebtsIndex::class)
+            ->call('openCreateModal')
+            ->call('openQuickDebtTypeModal')
+            ->set('quickDebtTypeName', 'Crédito Vehicular Auto')
+            ->call('saveQuickDebtType')
+            ->assertHasNoErrors();
+
+        $createdType = DebtTypeCatalog::query()
+            ->ownedBy($user)
+            ->where('name', 'Crédito Vehicular Auto')
+            ->first();
+
+        $this->assertNotNull($createdType);
+        $this->assertSame('credito_vehicular_auto', $createdType->slug);
+
+        // El componente seleccionó automáticamente el nuevo tipo
+        $component->assertSet('debtType', 'credito_vehicular_auto');
+
+        // Guardar la deuda con este nuevo tipo dinámico
+        $component->set('name', 'Financiamiento Mazda CX30')
+            ->set('originalPrincipal', '15000.00')
+            ->set('creditorName', 'Banco Pichincha')
+            ->call('saveDebt')
+            ->assertHasNoErrors();
+
+        $debt = Debt::query()
+            ->ownedBy($user)
+            ->where('name', 'Financiamiento Mazda CX30')
+            ->first();
+
+        $this->assertNotNull($debt);
+        $this->assertSame('credito_vehicular_auto', (string) $debt->type);
+        $this->assertSame('Crédito Vehicular Auto', $debt->type->label());
     }
 }

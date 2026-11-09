@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Reporting;
 
 use App\Enums\DebtStatus;
-use App\Enums\DebtType;
 use App\Enums\SavingsGoalStatus;
 use App\Models\Debt;
 use App\Models\SavingsGoal;
@@ -88,7 +87,7 @@ class NotificationCenterService
             ->get();
 
         foreach ($activeDebts as $debt) {
-            $isCard = $debt->type === DebtType::CreditCard;
+            $isCard = $debt->isCreditCard();
             $route = $isCard ? 'cards.index' : 'debts.index';
             $label = $isCard ? 'Pagar Tarjeta' : 'Ver Deuda';
 
