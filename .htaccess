@@ -1,17 +1,12 @@
 # php -- BEGIN cPanel-generated handler, do not edit
-# Set the “ea-php83” or “alt-php83” package as default PHP programming language for BanaHosting.
+# Set the “ea-php83” package as the default “PHP” programming language.
 <IfModule mime_module>
   AddHandler application/x-httpd-ea-php83 .php .php8 .phtml
-  AddHandler application/x-httpd-alt-php83 .php .php8 .phtml
-</IfModule>
-<IfModule lsapi_module>
-  AddHandler application/x-httpd-ea-php83 .php
-  AddHandler application/x-httpd-alt-php83 .php
 </IfModule>
 # php -- END cPanel-generated handler, do not edit
 
 # ==============================================================================
-# Ahorvia — Protección de Archivos Sensibles (cPanel / Apache / LiteSpeed)
+# Ahorvia — Enrutamiento y Protección (cPanel / Apache / LiteSpeed)
 # ==============================================================================
 
 <IfModule mod_rewrite.c>
@@ -20,7 +15,11 @@
     # Bloqueo estricto de acceso a archivos ocultos, configuración y código fuente
     RewriteRule ^(\.env|\.git|composer\.(json|lock)|package\.(json|lock)|phpunit\.xml|phpstan\.neon|artisan|DEPLOYMENT\.md|PROJECT_STATUS\.md|AGENTS\.md) - [F,L,NC]
     RewriteRule ^(app|bootstrap|config|database|resources|routes|storage|tests)/ - [F,L,NC]
+
+    # Si la petición no apunta a public/, redirigir internamente hacia public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 
-# Deshabilitar listado de directorios
+DirectoryIndex index.php public/index.php
 Options -Indexes
